@@ -10,7 +10,7 @@ class Templatewave:
         self.mass1 = m1
         self.mass2 = m2
         self.distance = d
-        self.hp , self.hc = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=m1, mass2=m2, disance=d, f_lower=20, delta_t=1/4096)
+        self.hp , self.hc = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=m1, mass2=m2, distance=d, f_lower=20, delta_t=1/4096)
 
 #Generen van een Templatebank
 templatebank = []
@@ -21,9 +21,9 @@ for m1 in range(20):
         templatebank.append(templatewave)
         print("wave gegenereerd")
 
-hp1, hc1 = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=12, mass2=12, disance=300, f_lower=20, delta_t=1/4096)
-hp2, hc2 = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=10.5, mass2=13.5, disance=300, f_lower=20, delta_t=1/4096)
-hp3, hc3 = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=14, mass2=10, disance=300, f_lower=20, delta_t=1/4096)
+hp1, hc1 = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=12, mass2=12, distance=300, f_lower=20, delta_t=1/4096)
+hp2, hc2 = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=10.5, mass2=13.5, distance=300, f_lower=20, delta_t=1/4096)
+hp3, hc3 = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=14, mass2=10, distance=300, f_lower=20, delta_t=1/4096)
 
 array = np.zeros((40,40))
 
