@@ -40,3 +40,14 @@ ax[0].plot(np.arange(len(hp1))/4096 - 27, hp1)
 ax[1].plot(np.arange(len(hp2))/4096 - 27, hp2)
 ax[2].plot(np.arange(len(hp3))/4096 - 27, hp3)
 plt.show()
+
+#SNR berekenen
+def bereken_SNR(h, t):
+    for t in templatebank:
+        if np.shape(hp1.numpy()) == np.shape(t.hp.numpy()):
+            SNR_squared = np.sum(hp1.numpy()**2) / np.sum(t.hp.numpy()**2)
+            return np.sqrt(SNR_squared)
+
+#aanroepen SNR
+SNR = bereken_SNR(hp1, templatebank[0])
+print(SNR)
