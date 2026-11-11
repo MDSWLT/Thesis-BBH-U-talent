@@ -28,7 +28,7 @@ def wavematch(hp, iterations):
                 templatebank.append(templatewave)
         # Het matchen zelf
         for t in templatebank:
-            overlap = (np.sum(hp.numpy() * t.hp.numpy()) / math.sqrt(np.sum(hp.numpy() ** 2) * np.sum(t.hp.numpy() ** 2)))
+            overlap = abs(np.sum(hp.numpy() * t.hp.numpy()) / math.sqrt(np.sum(hp.numpy() ** 2) * np.sum(t.hp.numpy() ** 2)))
             overlaps.append(overlap)
             masses.append(t.mass1)
         mclosest = masses[overlaps.index(max(overlaps))]
