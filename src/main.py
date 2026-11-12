@@ -21,9 +21,9 @@ datapad = f"{pathlib.Path(__file__).parent.parent.absolute()}/basistemplatebank"
 from Templatewave import Templatewave
 
 # De eerste 400 templatewaves worden meteen aan het begin gegenereerd, zodat dit rekenwerk maar een keer hoeft te gebeuren
-#basistemplatebank = []
-#for m in range(700):
-    #basistemplatebank.append(Templatewave(4 + m/10, 22))
+basistemplatebank = []
+for m in range(700):
+    basistemplatebank.append(Templatewave(4 + m/10, 22))
 
 # Aan te roepen functie voor het genereren van 2n+1 templatewaves met massa's in de spreiding mass±n/10^decimal (decimal heeft
 # de waarde van de positie van het te veranderen cijfer achter de komma. Bijvoorbeeld: 0 -> 1.0, 2.0, 3.0 etc. en 1 -> 0.1, 0.2, 0.3 etc.)
@@ -50,7 +50,7 @@ def wavematch(hp, templatebank):
 # Aan te roepen functie die van een hp timeseries en een waarde voor de hoeveelheid getallen achter de komma
 # rond de beste match een lijst met testmassa's en een lijst met bijbehorende overlaps maakt.
 def findmass(hp, decimal):
-    masses, overlaps = wavematch(hp, list(load(f"{datapad}/m22.pickle")))
+    masses, overlaps = wavematch(hp, basistemplatebank)
     bestmass = masses[overlaps.index(max(overlaps))]
     for i in range(decimal):
         templatebank = maketemplates(9, bestmass, i+1)
