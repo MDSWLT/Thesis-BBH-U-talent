@@ -1,6 +1,7 @@
 import numpy as np
 import pycbc.waveform
-from matplotlib import pyplot as plt
+import matplotlib
+import matplotlib.pyplot as plt
 import pycbc.noise
 import pycbc.psd.analytical
 import math
@@ -16,73 +17,85 @@ def load(path):
                 return
 
 import pathlib
-datapad = f"{pathlib.Path(__file__).parent.parent.absolute()}/basistemplatebank"
+datapad = pathlib.Path(__file__).parent.parent.absolute()
 
 from Templatewave import Templatewave
 
-# De eerste 400 templatewaves worden meteen aan het begin gegenereerd, zodat dit rekenwerk maar een keer hoeft te gebeuren
-basistemplatebank = []
-for m in range(700):
-    basistemplatebank.append(Templatewave(4 + m/10, 22))
+totaltemplatebank = []
+usedmasses = []
 
-# Aan te roepen functie voor het genereren van 2n+1 templatewaves met massa's in de spreiding mass±n/10^decimal (decimal heeft
+# Aan te roepen functie voor het genereren van templatewaves met massa's in de spreiding mass(1 en 2)±n/10^decimal (decimal heeft
 # de waarde van de positie van het te veranderen cijfer achter de komma. Bijvoorbeeld: 0 -> 1.0, 2.0, 3.0 etc. en 1 -> 0.1, 0.2, 0.3 etc.)
-def maketemplates(n, mass, decimal):
+def maketemplates(n, mass1, mass2, decimal):
+    mstart1 = mass1 - (n/(10**decimal))
+    mstart2 = mass2 - (n/(10**decimal))
     templatebank = []
-    mstart = mass - (n/(10**decimal))
     for i in range(2*n + 1):
-        templatebank.append(Templatewave(mstart + (i/(10**decimal)), 22))
+        for j in range(2*n + 1):
+            m1 = mstart1 + (i/(10**decimal))
+            m2 = mstart2 + (j/(10**decimal))
+            if f'{m1}{m2}' in usedmasses:
+                templatebank.append(totaltemplatebank[usedmasses.index(f'{m1}{m2}')])
+            else:
+                wave = Templatewave(m1, m2)
+                templatebank.append(wave)
+                totaltemplatebank.append(wave)
+                usedmasses.append(f'{m1}{m2}')
+                print(f'Nieuwe golf gegenereerd ({m1}, {m2})')
     return templatebank
 
 # Aan te roepen functie voor het matchen van een golfsignaal in de vorm van een timeseries met templatewaves (in de vorm
-# van lijst met class instances van Templatewave). Er wordt gekeken naar de hp. De output is een lijst met alle testmassa's
+# van lijst met class instances van Templatewave). Er wordt gekeken naar de hp. De output is twee lijsten met alle testmassa's
 # en een lijst met alle overlapwaardes
-def wavematch(hp, templatebank):
-    masses = []
+def wavematch(hp, matchtemplatebank):
+    masses1 = []
+    masses2 = []
     overlaps = []
-    for t in templatebank:
+    for t in matchtemplatebank:
         if np.shape(hp.numpy()) == np.shape(t.hp.numpy()):
             overlap = abs(np.sum(hp.numpy() * t.hp.numpy()) / math.sqrt(np.sum(hp.numpy() ** 2) * np.sum(t.hp.numpy() ** 2)))
-            masses.append(t.mass1)
+            masses1.append(t.mass1)
+            masses2.append(t.mass2)
             overlaps.append(overlap)
-    return masses, overlaps
+    return masses1, masses2, overlaps
 
 # Aan te roepen functie die van een hp timeseries en een waarde voor de hoeveelheid getallen achter de komma
-# rond de beste match een lijst met testmassa's en een lijst met bijbehorende overlaps maakt.
+# (minimaal 1) rond de beste match een lijst met testmassa's en een lijst met bijbehorende overlaps maakt.
 def findmass(hp, decimal):
-    masses, overlaps = wavematch(hp, basistemplatebank)
-    bestmass = masses[overlaps.index(max(overlaps))]
+    decimal -= 1
+    masses1, masses2, overlaps = wavematch(hp, list(load(f'{datapad}/templatebank.pickle')))
+    bestmass1 = masses1[overlaps.index(max(overlaps))]
+    bestmass2 = masses2[overlaps.index(max(overlaps))]
     for i in range(decimal):
-        templatebank = maketemplates(9, bestmass, i+1)
-        extramasses, extraoverlaps = wavematch(hp, templatebank)
-        bestmass = extramasses[extraoverlaps.index(max(extraoverlaps))]
-        for m in extramasses:
-            masses.append(m)
+        templatebank = maketemplates(6, bestmass1, bestmass2, i+2)
+        extramasses1, extramasses2, extraoverlaps = wavematch(hp, templatebank)
+        bestmass1 = extramasses1[extraoverlaps.index(max(extraoverlaps))]
+        bestmass2 = extramasses2[extraoverlaps.index(max(extraoverlaps))]
+        for m in extramasses1:
+            masses1.append(m)
+        for m in extramasses2:
+            masses2.append(m)
         for o in extraoverlaps:
             overlaps.append(o)
-    return masses, overlaps
+    return masses1, masses2, overlaps
 
-for d in range(10):
-    hp1, hc1 = pycbc.waveform.get_td_waveform(approximant='IMRPhenomD', mass1=58, mass2=22, distance=100*(d+1), f_lower=20, delta_t=1/4096)
-    deltaf = 1/(len(hp1)/4096)
+for d in range(50):
+    hp, hc = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=9, mass2=16, distance=100*(d+1), f_lower=20, delta_t=1/4096)
+    deltaf = 1/(len(hp)/4096)
     length = int(4096/2/deltaf +1)
     psd = pycbc.psd.analytical.AdvVirgo(length, deltaf, 20)
 
-    gevonden_massas = []
+    gevonden_massas1 = []
+    gevonden_massas2 = []
     for i in range(20):
-        noise = pycbc.noise.noise_from_psd(length=len(hp1), delta_t=1/4096, psd=psd, seed=i)
-        signaal = np.add(hp1, noise)
-        masses, overlaps = findmass(signaal, 3)
-        bestmass = masses[overlaps.index(max(overlaps))]
-        gevonden_massas.append(bestmass)
-    print(f"Afstand: {100*(d+1)} Mpc")
-    print(f"De gemiddelde gevonden massa is: {statistics.mean(gevonden_massas)} met een standaarddeviatie: {statistics.stdev(gevonden_massas)}")
-
-# SNR berekenen
-def bereken_SNR(no_noise, noise):
-    SNR_squared = np.sum(no_noise.numpy()**2) / np.sum(noise.numpy()**2)
-    return np.sqrt(SNR_squared)
-
-# aanroepen SNR
-#SNR = bereken_SNR(hp1, noise)
-#print(SNR)
+        noise = pycbc.noise.noise_from_psd(length=len(hp), delta_t=1/4096, psd=psd, seed=i)
+        signaal = np.add(hp, noise)
+        masses1, masses2, overlaps = findmass(signaal, 3)
+        bestmass1 = masses1[overlaps.index(max(overlaps))]
+        bestmass2 = masses2[overlaps.index(max(overlaps))]
+        gevonden_massas1.append(bestmass1)
+        gevonden_massas2.append(bestmass2)
+        print(bestmass1, bestmass2)
+    print(f"SNR: {pycbc.filter.sigma(hp, psd, low_frequency_cutoff=20, high_frequency_cutoff=2048)}")
+    print(f"M1: {statistics.mean(gevonden_massas1)} met een standaarddeviatie: {statistics.stdev(gevonden_massas1)}\n"
+          f"M2: {statistics.mean(gevonden_massas2)} met een standaarddeviatie: {statistics.stdev(gevonden_massas2)}")
