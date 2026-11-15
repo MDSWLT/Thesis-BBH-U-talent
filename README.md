@@ -1,5 +1,6 @@
 # Werkt alleen op Python 3.12
 En Linux...
+En minimaal 8GB RAM-geheugen
 
 # Thesis-BBH-U-talent
 Repository voor thesisproject
