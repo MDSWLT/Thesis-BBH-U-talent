@@ -1,11 +1,17 @@
+eerste_massa = 26
+tweede_massa = 26
+
+
 import numpy as np
 import pycbc.waveform
 import matplotlib
+matplotlib.use("QtAgg")
 import matplotlib.pyplot as plt
 import pycbc.noise
 import pycbc.psd.analytical
 import math
 import statistics
+import pandas as pd
 
 import pickle
 def load(path):
@@ -79,23 +85,68 @@ def findmass(hp, decimal):
             overlaps.append(o)
     return masses1, masses2, overlaps
 
-for d in range(50):
-    hp, hc = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=9, mass2=16, distance=100*(d+1), f_lower=20, delta_t=1/4096)
-    deltaf = 1/(len(hp)/4096)
-    length = int(4096/2/deltaf +1)
-    psd = pycbc.psd.analytical.AdvVirgo(length, deltaf, 20)
+with pd.ExcelWriter(f"{datapad}/resultaten({eerste_massa} en {tweede_massa}).xlsx", engine="openpyxl") as writer:
+    gemiddelde_massas1 = []
+    gemiddelde_massas2 = []
+    snrs = []
+    standaarddeviaties1 = []
+    standaarddeviaties2 = []
 
-    gevonden_massas1 = []
-    gevonden_massas2 = []
-    for i in range(20):
-        noise = pycbc.noise.noise_from_psd(length=len(hp), delta_t=1/4096, psd=psd, seed=i)
-        signaal = np.add(hp, noise)
-        masses1, masses2, overlaps = findmass(signaal, 3)
-        bestmass1 = masses1[overlaps.index(max(overlaps))]
-        bestmass2 = masses2[overlaps.index(max(overlaps))]
-        gevonden_massas1.append(bestmass1)
-        gevonden_massas2.append(bestmass2)
-        print(bestmass1, bestmass2)
-    print(f"SNR: {pycbc.filter.sigma(hp, psd, low_frequency_cutoff=20, high_frequency_cutoff=2048)}")
-    print(f"M1: {statistics.mean(gevonden_massas1)} met een standaarddeviatie: {statistics.stdev(gevonden_massas1)}\n"
-          f"M2: {statistics.mean(gevonden_massas2)} met een standaarddeviatie: {statistics.stdev(gevonden_massas2)}")
+    for d in range(40):
+        distance = 8000/(d+1)
+        hp, hc = pycbc.waveform.get_td_waveform(approximant='SEOBNRv4P', mass1=eerste_massa, mass2=tweede_massa, distance=distance, f_lower=20, delta_t=1/4096)
+        deltaf = 1/(len(hp)/4096)
+        length = int(4096/2/deltaf +1)
+        psd = pycbc.psd.analytical.AdvVirgo(length, deltaf, 20)
+
+        gevonden_overlaps = []
+        gevonden_massas1 = []
+        gevonden_massas2 = []
+        for i in range(75):
+            noise = pycbc.noise.noise_from_psd(length=len(hp), delta_t=1/4096, psd=psd)
+            signaal = np.add(hp, noise)
+            masses1, masses2, overlaps = findmass(signaal, 3)
+            bestoverlap = max(overlaps)
+            bestmass1 = masses1[overlaps.index(bestoverlap)]
+            bestmass2 = masses2[overlaps.index(bestoverlap)]
+            gevonden_overlaps.append(bestoverlap)
+            gevonden_massas1.append(bestmass1)
+            gevonden_massas2.append(bestmass2)
+            print(bestmass1, bestmass2)
+
+        tussenresultaten = pd.DataFrame({
+            "Gevonden massa 1": gevonden_massas1,
+            "Gevonden massa 2": gevonden_massas2,
+            "Overlap": gevonden_overlaps,
+        })
+
+        tussenresultaten.to_excel(writer, sheet_name=f"d={distance}", index=False)
+
+        snr = pycbc.filter.sigma(hp, psd, low_frequency_cutoff=20, high_frequency_cutoff=2048)
+        snrs.append(snr)
+
+        gemiddelde_massa1 = statistics.mean(gevonden_massas1)
+        gemiddelde_massas1.append(gemiddelde_massa1)
+
+        standaarddeviatie_massa1 = statistics.stdev(gevonden_massas1)
+        standaarddeviaties1.append(standaarddeviatie_massa1)
+
+        gemiddelde_massa2 = statistics.mean(gevonden_massas2)
+        gemiddelde_massas2.append(gemiddelde_massa2)
+
+        standaarddeviatie_massa2 = statistics.stdev(gevonden_massas2)
+        standaarddeviaties2.append(standaarddeviatie_massa2)
+
+        print(f"SNR: {snr}\n"
+            f"M1: {gemiddelde_massa1} met een standaarddeviatie: {standaarddeviatie_massa1}\n"
+            f"M2: {gemiddelde_massa2} met een standaarddeviatie: {standaarddeviatie_massa2}")
+
+    eindresultaten = pd.DataFrame({
+        "SNR": snrs,
+        "Massa 1": gemiddelde_massas1,
+        "Standaarddeviatie 1": standaarddeviaties1,
+        "Massa 2": gemiddelde_massas2,
+        "Standaarddeviatie 2": standaarddeviaties2,
+    })
+
+    eindresultaten.to_excel(writer, sheet_name=f"Eindresultaten", index=False)
