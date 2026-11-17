@@ -4,9 +4,6 @@ tweede_massa = 26
 
 import numpy as np
 import pycbc.waveform
-import matplotlib
-matplotlib.use("QtAgg")
-import matplotlib.pyplot as plt
 import pycbc.noise
 import pycbc.psd.analytical
 import math
